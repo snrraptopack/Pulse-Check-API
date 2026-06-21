@@ -11,7 +11,7 @@ export async function handleHeartBeat(req: BunRequest<"/monitors/:id/heartbeat">
   const monitor = db.get(id)
 
   if (!monitor) {
-    return Response.json({error:"Device ID not found"},{status:404})
+    return Response.json({error:"Device not found"},{status:404})
   }
 
   if (monitor.status === "down") {
@@ -19,7 +19,8 @@ export async function handleHeartBeat(req: BunRequest<"/monitors/:id/heartbeat">
   }
 
   startTimer(id, monitor.timeout) // reset the timer clock
+  monitor.status = "active"
   monitor.last_ping = Date.now()
 
-  return Response.json({ message: "Timer restarted" },{status:200})
+  return Response.json({ message: `Timer restarted for ${id}` },{status:200})
 }
