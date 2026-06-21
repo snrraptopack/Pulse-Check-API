@@ -21,7 +21,7 @@ export async function handlePause(req: BunRequest<"/monitors/:id/pause">): Promi
   if (monitor.status === "paused") {
       return Response.json({message:"Monitor paused already"},{status:200})
   }
-  clearTimer(id) // stops the coutdown
+  clearTimer(id) // stops the countdown
 
   monitor.status = "paused"
 

@@ -3,6 +3,8 @@
  */
 
 import { db, activeTimer } from "../db";
+import { sendAlertEmail } from "./email";
+const API_KEY = Bun.env.RESEND_API_KEY
 
 export function startTimer(id: string, timeoutSeconds: number) {
   clearTimer(id) // clears exisiting timer before
@@ -12,7 +14,7 @@ export function startTimer(id: string, timeoutSeconds: number) {
 
     if (monitor) {
       monitor.status = "down"
-      console.log(JSON.stringify({ALERT: `Device ${id} is down`, time: Date.now()}))
+      sendAlertEmail(monitor.alert_email, monitor.id, API_KEY)
     }
 
     activeTimer.delete(id)
