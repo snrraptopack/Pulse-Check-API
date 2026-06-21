@@ -10,10 +10,6 @@ import { startTimer } from "../utils/timer"
 
 export async function handleRegisterMonitor(req: BunRequest<"/monitors">): Promise<Response> {
 
-  if (req.method !== "POST") {
-    return Response.json({ error: "Only Post method is allowed" }, { status: 405 })
-  }
-
   let body: any
 
   try {

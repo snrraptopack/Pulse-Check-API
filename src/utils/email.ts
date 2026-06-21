@@ -26,7 +26,9 @@ export async function sendAlertEmail(to: string, deviceId: string, API_KEY?: str
 
      if (!response.ok) {
        console.error("Failed to send email API request:", await response.text());
+       return
      }
+     console.log("email sent to")
    } catch (error) {
       console.error("Error sending email:", error);
    }
