@@ -2,7 +2,6 @@
  *@fileoverview Serve as a timer  utlity
  */
 
-
 import { db, activeTimer } from "../db";
 
 export function startTimer(id: string, timeoutSeconds: number) {

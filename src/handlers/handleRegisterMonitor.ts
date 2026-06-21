@@ -6,6 +6,7 @@ import type { BunRequest } from "bun"
 import { validateDeviceRegistration } from "../utils/validation"
 import { db } from "../db"
 import type { Monitor } from "../types"
+import { startTimer } from "../utils/timer"
 
 export async function handleRegisterMonitor(req: BunRequest<"/monitors">): Promise<Response> {
 
@@ -42,6 +43,7 @@ export async function handleRegisterMonitor(req: BunRequest<"/monitors">): Promi
   }
 
   db.set(id, newMonitor)
+  startTimer(id,timeout)
 
   return Response.json({ message: "Monitor Successfully registered", data: newMonitor }, { status: 201 })
 
