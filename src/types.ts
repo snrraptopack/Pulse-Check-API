@@ -6,7 +6,7 @@ export type Monitor ={
   timeout: number; // Duration in seconds before it fails
   status: MonitorStatus;
   last_ping: number; // Exact timestamp in milliseconds
-  alert_email:String
+  alert_email:string
 }
 
 export type ValidatedRegistration  = {

@@ -1,29 +1,15 @@
-import type { Monitor } from "./types"
-import { validateDeviceRegistration } from "./utils/validation"
+import { handleHeartBeat } from "./handlers/handleHeartBeat"
+import { handlePause } from "./handlers/handlePause"
+import { handleRegisterMonitor } from "./handlers/handleRegisterMonitor"
 
 const server = Bun.serve({
   port: 8085,
   routes: {
-    "/monitors": async (req) => {
-      if (req.method !== "POST") {
-        return Response.json({ error: "only Post method allowed" })
-      }
-      const body = await req.json() as Monitor
-      if (!body) {
-         return Response.json({error:"No body provided"})
-      }
-      const valdatebody = validateDeviceRegistration(body)
+    "/monitors": handleRegisterMonitor,
+    "/monitors/:id/heartbeat": handleHeartBeat,
+    "/monitors/:id/pause": handlePause,
 
-      if (!valdatebody.success) {
-        return Response.json({error:valdatebody.message})
-      }
-      return Response.json({data:"hello"})
-    },
-    "/*": (e) => {
-      let request = e.body
-      console.log(request)
-      return Response.json({error:"not found"})
-    }
+    "/*": (e) => Response.json({ error: "Resource Not found" }, { status: 404 })
   }
 })
 
