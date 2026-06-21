@@ -8,3 +8,13 @@ export type Monitor ={
   last_ping: number; // Exact timestamp in milliseconds
   alert_email:String
 }
+
+export type ValidatedRegistration  = {
+  id: string,
+  timeout: number
+  alert_email:string
+}
+
+export type ValidationResult =
+  | { success: true, data: ValidatedRegistration }
+  | {success:false, message:string}

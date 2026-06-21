@@ -1,21 +1,18 @@
 import type { Monitor } from "./types"
-import { validateDeviceRegistration } from "./validation"
+import { validateDeviceRegistration } from "./utils/validation"
 
 const server = Bun.serve({
   port: 8085,
   routes: {
-    "/monitors": (req) => {
-
+    "/monitors": async (req) => {
       if (req.method !== "POST") {
         return Response.json({ error: "only Post method allowed" })
       }
-
-      const body = req.body?.json()
+      const body = await req.json() as Monitor
       if (!body) {
          return Response.json({error:"No body provided"})
       }
-
-      const valdatebody = validateDeviceRegistration(body as Monitor)
+      const valdatebody = validateDeviceRegistration(body)
 
       if (!valdatebody.success) {
         return Response.json({error:valdatebody.message})
