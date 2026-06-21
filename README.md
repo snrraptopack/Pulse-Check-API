@@ -1,135 +1,163 @@
-# Pulse-Check-API ("Watchdog" Sentinel)
-This challenge is designed to test your ability to bridge Computer Science fundamentals with Modern Backend Engineering.
+# 📡 Pulse Check API (Watchdog Sentinel)
 
-## 1. Business Context
-> **Client:** *CritMon Servers Inc.* (A Critical Infrastructure Monitoring Company).
+A stateful, zero-dependency "Dead Man's Switch" API built with [Bun](https://bun.sh) for monitoring critical infrastructure. 
 
-### The Problem
-CritMon provides monitoring for remote solar farms and unmanned weather stations in areas with poor connectivity. These devices are supposed to send "I'm alive" signals every hour.
+When remote devices—such as solar farms or unmanned weather stations—stop sending periodic heartbeats, this API automatically detects the failure and triggers an alert.
 
-Currently, CritMon has no way of knowing if a device has gone offline (due to power failure or theft) until a human manually checks the logs. They need a system that alerts *them* when a device *stops* talking.
-
-### The Solution
-You need to build a **Dead Man’s Switch API**. Devices will register a "monitor" with a countdown timer (e.g., 60 seconds). If the device fails to "ping" (send a heartbeat) to the API before the timer runs out, the system automatically triggers an alert.
+## Features
+* **Zero Dependencies:** Core logic utilizes Bun's native HTTP server and JavaScript's `setTimeout` API. No Express, no Zod, no external routing libraries.
+* **State Management:** Highly performant in-memory `Map` architecture for O(1) device lookups and native timer tracking.
+* **Snooze Mechanism:** Easily pause monitoring for devices undergoing maintenance to prevent false alarms.
+* **Auto-Recovery:** Resuming a heartbeat on a paused device automatically re-initiates the monitoring loop.
 
 ---
 
-## 2. Technical Objective
-Build a backend service that manages stateful timers.
+## Getting Started
 
-* **Registration:** Allow a client to create a monitor with a specific timeout duration.
-* **Heartbeat:** Reset the countdown when a ping is received.
-* **Trigger:** Fire a webhook (or log a critical error) if the countdown reaches zero.
+### Prerequisites
+* [Bun](https://bun.sh/) installed (`curl -fsSL https://bun.sh/install | bash`)
 
+### Running the Server
+```bash
+# Clone the repository
+# bun install (optional, no heavy dependencies)
 
----
+# Run in development mode (hot reloading)
+bun run dev
 
-## 3. Getting Started
+# Run in production mode
+bun run start
+```
 
-1.  **Fork this Repository:** Do not clone it directly. Create a fork to your own GitHub account.
-2.  **Environment:** You may use **Node.js, Python, Java or Go, etc.**.
-3.  **Submission:** Your final submission will be a link to your forked repository containing:
-    * The source code.
-    * The **Architecture Diagram**
-    * The `README.md` with documentation.
-
----
-
-## 4. The Architecture Diagram 
-**Task:** Before you write any code, you must design the logic flow.
-**Deliverable:** A **Sequence Diagram** or **State Flowchart** embedded in your `README.md`.
+*The server will start on `http://localhost:8085`*
 
 ---
 
-## 5. User Stories & Acceptance Criteria
+## 📚 API Endpoints
 
-### User Story 1: Registering a Monitor
-**As a** device administrator,  
-**I want to** create a new monitor for my device,  
-**So that** the system knows to track its status.
+### 1. Register a Monitor
+Starts a countdown timer for a specific device.
 
-**Acceptance Criteria:**
-- [ ] The API accepts a `POST /monitors` request.
-- [ ] Input: `{"id": "device-123", "timeout": 60, "alert_email": "admin@critmon.com"}`.
-- [ ] The system starts a countdown timer for 60 seconds associated with `device-123`.
-- [ ] Response: `201 Created` with a confirmation message.
+The timeout uses 1 = 60 sec
 
-### User Story 2: The Heartbeat (Reset)
-**As a** remote device,  
-**I want to** send a signal to the server,  
-**So that** my timer is reset and no alert is sent.
+* **POST** `/monitors`
+* **Body:** 
+  ```json
+  {
+    "id": "node-1", 
+    "timeout": 1, 
+    "alert_email": "admin@hq.com"
+  }
+  ```
+* **Success Response (201 Created):**
+  ```json
+  {
+    "message": "Monitor Successfully registered",
+    "data": {
+      "id": "node-1",
+      "timeout": 1,
+      "alert_email": "admin@hq.com",
+      "status": "active",
+      "last_ping": 1718920000000
+    }
+  }
+  ```
+* **Error Responses:**
+  * `400 Bad Request`: `{"error": "Invalid JSON body provided"}` or validation errors.
+  * `409 Conflict`: `{"error": "Monitor with ID 'node-1' already exists"}`
 
-**Acceptance Criteria:**
-- [ ] The API accepts a `POST /monitors/{id}/heartbeat` request.
-- [ ] If the ID exists and the timer has NOT expired:
-    - [ ] Restart the countdown from the beginning (e.g., reset to 60 seconds).
-    - [ ] Return `200 OK`.
-- [ ] If the ID does not exist:
-    - [ ] Return `404 Not Found`.
+### 2. Send Heartbeat
+Reset the countdown timer. If the device was snoozed (`paused`), this will reactivate it. Cannot be used on a device that is already `down`.
 
-### User Story 3: The Alert (Failure State)
-**As a** support engineer,  
-**I want to** be notified immediately if a device stops sending heartbeats,  
-**So that** I can deploy a repair team.
+* **POST** `/monitors/{id}/heartbeat`
+* **Success Response (200 OK):**
+  ```json
+  {
+    "message": "Timer restarted for node-1"
+  }
+  ```
+* **Error Responses:**
+  * `404 Not Found`: `{"error": "Device not found"}`
+  * `400 Bad Request`: `{"error": "Cannot heartbeat a down monitor. Manual reset required."}`
 
-**Acceptance Criteria:**
-- [ ] If the timer for `device-123` reaches 0 seconds (no heartbeat received):
-    - [ ] The system must internally "fire" an alert.
-    - [ ] **Implementation:** For this project, simply `console.log` a JSON object: `{"ALERT": "Device device-123 is down!", "time": <timestamp>}`. (Or simulate sending an email).
-    - [ ] The monitor status changes to `down`.
+### 3. Pause Monitor
+Suspend the countdown timer for maintenance. Calling this prevents alerts from firing.
+
+* **POST** `/monitors/{id}/pause`
+* **Success Response (200 OK):**
+  ```json
+  {
+    "message": "Monitor paused successfully"
+  }
+  ```
+  *(Returns `"Monitor paused already"` if already paused)*
+* **Error Responses:**
+  * `404 Not Found`: `{"error": "Device not found"}`
+  * `400 Bad Request`: `{"error": "Can not pause a broken device"}`
+
+### 4. List All Monitors (Developer's Choice Feature)
+Returns the live status of all registered hardware.
+
+* **GET** `/monitors`
+* **Success Response (200 OK):**
+  ```json
+  {
+    "total": 1,
+    "data": [
+      {
+        "id": "node-1",
+        "timeout": 1,
+        "alert_email": "admin@hq.com",
+        "status": "active",
+        "last_ping": 1718920000000
+      }
+    ]
+  }
+  ```
+
+---
+
+## 🏗 System Architecture Diagram
+
+This flowchart outlines the in-memory timer lifecycle:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Device
+    participant API as Pulse Check API
+    participant DB as System Memory
+    participant Timer as Timeout Loop
+    
+    %% Registration
+    Device->>API: POST /monitors {id, timeout: 60}
+    API->>DB: Save Device (status: 'active')
+    API->>Timer: Create 60s countdown
+    API-->>Device: 201 Created
+
+    %% Heartbeat
+    Device->>API: POST /monitors/node-1/heartbeat
+    API->>Timer: clear old countdown
+    API->>DB: Update last_ping timestamp
+    API->>Timer: Create fresh 60s countdown
+    API-->>Device: 200 OK 
+
+    %% Timeout failure (Alerting)
+    Note over Timer: ...60 seconds pass without ping...
+    Timer-->>API: countdown expires
+    API->>DB: Set status to 'down'
+    API->>API: Dispatch Alert Array
+```
 
 ---
 
-## 6. Bonus User Story (The "Snooze" Button)
-**As a** maintenance technician,  
-**I want to** pause monitoring while I am repairing a device,  
-**So that** I don't trigger false alarms.
+## 🤔 Technical Decisions & Developer's Choice
 
-**Acceptance Criteria:**
-- [ ] Create a `POST /monitors/{id}/pause` endpoint.
-- [ ] When called, the timer stops completely. No alerts will fire.
-- [ ] Calling the heartbeat endpoint again automatically "un-pauses" the monitor and restarts the timer.
+### The "Developer's Choice" (Task 7)
+**Feature Implemented:** `GET /monitors` (Global List Endpoint)
 
----
+**Why I added it:**
+In a headless application managing background timers, state exists entirely invisibly in memory. I implemented a `GET` endpoint to expose these internal values so an external dashboard could poll the total system health. It transforms a "black-box" timeout engine into an inspectable service.
 
-## 7. The "Developer's Choice" Challenge
-We value engineers who look for "what's missing."
-
-**Task:** Identify **one** additional feature that makes this system more robust or user-friendly.
-1.  **Implement it.**
-2.  **Document it:** Explain *why* you added it in your README.
-
----
-
-## 8. Documentation Requirements
-Your final `README.md` must replace these instructions. It must cover:
-
-1.  **Architecture Diagram** 
-2.  **Setup Instructions** 
-3.  **API Documentation** 
-4.  **The Developer's Choice:** Explanation of your added feature.
-
----
-Submit your repo link via the [online](https://forms.office.com/e/rGKtfeZCsH) form.
-
-## 🛑 Pre-Submission Checklist
-**WARNING:** Before you submit your solution, you **MUST** pass every item on this list.
-If you miss any of these critical steps, your submission will be **automatically rejected** and you will **NOT** be invited to an interview.
-
-### 1. 📂 Repository & Code
-- [ ] **Public Access:** Is your GitHub repository set to **Public**? (We cannot review private repos).
-- [ ] **Clean Code:** Did you remove unnecessary files (like `node_modules`, `.env` with real keys, or `.DS_Store`)?
-- [ ] **Run Check:** if we clone your repo and run `npm start` (or equivalent), does the server start immediately without crashing?
-
-### 2. 📄 Documentation (Crucial)
-- [ ] **Architecture Diagram:** Did you include a visual Diagram (Flowchart or Sequence Diagram) in the README?
-- [ ] **README Swap:** Did you **DELETE** the original instructions (the problem brief) from this file and replace it with your own documentation?
-- [ ] **API Docs:** Is there a clear list of Endpoints and Example Requests in the README?
-
-
-### 3. 🧹 Git Hygiene
-- [ ] **Commit History:** Does your repo have multiple commits with meaningful messages? (A single "Initial Commit" is a red flag).
-
----
-**Ready?**
-If you checked all the boxes above, submit your repository link in the application form. Good luck! 🚀
+### Why zero-dependencies?
+To meet the core challenge requirements, validation logic usually handled by `zod` and routing usually handled by `express` was handled directly using Bun's native Request handler loop. Timeouts rely entirely on Javascript's native garbage-collected `setTimeout` API rather than heavy queueing networks like Redis/BullMQ.
